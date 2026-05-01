@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart BI Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f4;color:#1a1a1a;min-height:100vh;}
+  .topbar{background:#fff;border-bottom:1px solid #e5e5e3;padding:0 2rem;height:52px;display:flex;align-items:center;justify-content:space-between;}
+  .topbar-title{font-size:15px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:8px;}
+  .topbar-title span{width:22px;height:22px;background:#1a1a1a;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;}
+  .topbar-title span svg{width:13px;height:13px;fill:#fff;}
+  .main{max-width:1100px;margin:0 auto;padding:2rem 1.5rem;}
+  .upload-card{background:#fff;border:1.5px dashed #d4d4d0;border-radius:14px;padding:3.5rem 2rem;text-align:center;cursor:pointer;transition:all .2s;}
+  .upload-card:hover{border-color:#a3a3a0;background:#fafaf9;}
+  .upload-icon{width:48px;height:48px;background:#f0f0ee;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+  .upload-icon svg{width:22px;height:22px;stroke:#666;fill:none;stroke-width:2;}
+  .upload-title{font-size:16px;font-weight:600;margin-bottom:6px;}
+  .upload-sub{font-size:13px;color:#737373;margin-bottom:20px;}
+  .hint-pills{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;}
+  .pill{font-size:11px;padding:4px 10px;border-radius:100px;background:#f0f0ee;color:#555;border:1px solid #e5e5e3;}
+  .loading-box{background:#fff;border-radius:14px;padding:1.5rem 2rem;margin-top:1.5rem;}
+  .step-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;color:#555;}
+  .sdot{width:6px;height:6px;border-radius:50%;background:#6366f1;flex-shrink:0;}
+  .lbar-track{height:4px;border-radius:2px;background:#f0f0ee;overflow:hidden;margin:10px 0 4px;}
+  .lbar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#6366f1,#8b5cf6);transition:width .5s ease;}
+  #dashboard{display:none;}
+  .dash-header{background:#fff;border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border:1px solid #e5e5e3;}
+  .dash-title{font-size:18px;font-weight:700;}
+  .dash-sub{font-size:13px;color:#737373;margin-top:3px;}
+  .btn-row{display:flex;gap:8px;}
+  .btn{font-size:12px;padding:7px 16px;border-radius:8px;border:1px solid #d4d4d0;background:#fff;color:#1a1a1a;cursor:pointer;font-weight:500;transition:background .15s;}
+  .btn:hover{background:#f5f5f4;}
+  .btn.primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+  .btn.primary:hover{background:#333;}
+  .ai-box{background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:.85rem 1.1rem;margin-bottom:1rem;font-size:13px;color:#3730a3;line-height:1.6;}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:1rem;}
+  .kpi-card{background:#fff;border-radius:12px;padding:1rem 1.1rem;border:1px solid #e5e5e3;}
+  .kpi-label{font-size:11px;color:#737373;font-weight:500;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
+  .kpi-value{font-size:24px;font-weight:700;color:#1a1a1a;}
+  .kpi-ctx{font-size:11px;color:#a3a3a0;margin-top:3px;}
+  .charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;margin-bottom:1rem;}
+  .chart-card{background:#fff;border-radius:12px;padding:1.1rem 1.25rem;border:1px solid #e5e5e3;}
+  .chart-title{font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:2px;}
+  .chart-story{font-size:11px;color:#a3a3a0;margin-bottom:12px;line-height:1.4;}
+  .insights-card{background:#fff;border-radius:12px;padding:1.1rem 1.25rem;border:1px solid #e5e5e3;margin-bottom:1rem;}
+  .insights-title{font-size:13px;font-weight:600;margin-bottom:10px;}
+  .insight-row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0ee;font-size:13px;color:#1a1a1a;line-height:1.5;}
+  .insight-row:last-child{border-bottom:none;}
+  .iball{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+  .api-notice{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:.85rem 1.1rem;margin-bottom:1rem;font-size:13px;color:#9a3412;line-height:1.6;display:none;}
+  .api-row{display:flex;gap:8px;margin-top:8px;}
+  .api-input{flex:1;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid #d4d4d0;font-family:inherit;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">
+    <span>
+      <svg viewBox="0 0 16 16"><rect x="1" y="8" width="3" height="7" rx="1"/><rect x="6" y="4" width="3" height="11" rx="1"/><rect x="11" y="1" width="3" height="14" rx="1"/></svg>
+    </span>
+    Smart BI Dashboard
+  </div>
+  <div style="font-size:12px;color:#a3a3a0;">AI-powered · Auto-detects KPIs & charts</div>
+</div>
+
+<div class="main">
+
+  <div id="api-notice" class="api-notice">
+    <strong>API key needed for AI analysis.</strong> Paste your Anthropic API key below to enable intelligent column understanding, KPI detection, and auto chart selection. Your key stays in your browser only.
+    <div class="api-row">
+      <input class="api-input" type="password" id="api-key-input" placeholder="sk-ant-..." />
+      <button class="btn primary" onclick="saveKey()">Save key</button>
+    </div>
+  </div>
+
+  <div id="upload-view">
+    <div class="upload-card" id="dz" onclick="document.getElementById('fi').click()">
+      <div class="upload-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div class="upload-title">Drop your CSV or Excel file here</div>
+      <div class="upload-sub">Supports .csv, .xlsx, .xls — AI reads your columns, understands what they mean, and builds the right dashboard automatically</div>
+      <div class="hint-pills">
+        <span class="pill">sales + year → line trend</span>
+        <span class="pill">revenue → KPI total</span>
+        <span class="pill">sales + region → bar chart</span>
+        <span class="pill">category share → donut</span>
+        <span class="pill">profit margin → KPI %</span>
+        <span class="pill">distribution → histogram</span>
+      </div>
+      <input type="file" id="fi" accept=".csv,.xlsx,.xls" style="display:none">
+    </div>
+
+    <div class="loading-box" id="loading-box" style="display:none">
+      <div id="steps"></div>
+      <div class="lbar-track"><div class="lbar-fill" id="lbar" style="width:0%"></div></div>
+      <div style="font-size:11px;color:#a3a3a0;margin-top:4px;" id="lmsg"></div>
+    </div>
+  </div>
+
+  <div id="dashboard">
+    <div class="dash-header">
+      <div>
+        <div class="dash-title" id="d-title"></div>
+        <div class="dash-sub" id="d-sub"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="dlCSV()">↓ Clean CSV</button>
+        <button class="btn primary" onclick="dlHTML()">↓ Download Dashboard</button>
+        <button class="btn" onclick="resetDash()">↺ New file</button>
+      </div>
+    </div>
+    <div class="ai-box" id="ai-box"></div>
+    <div class="kpi-grid" id="kpi-grid"></div>
+    <div class="charts-grid" id="charts-grid"></div>
+    <div class="insights-card">
+      <div class="insights-title">Key insights</div>
+      <div id="insights"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let gData=[],gCols=[],gNumCols=[],gCatCols=[],chartInst=[];
+
+function getKey(){return localStorage.getItem('anthropic_key')||'';}
+function saveKey(){const k=document.getElementById('api-key-input').value.trim();if(k){localStorage.setItem('anthropic_key',k);document.getElementById('api-notice').style.display='none';alert('API key saved!');}}
+
+window.onload=()=>{if(!getKey())document.getElementById('api-notice').style.display='block';};
+
+const dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.background='#f5f5f4';});
+dz.addEventListener('dragleave',()=>dz.style.background='');
+dz.addEventListener('drop',e=>{e.preventDefault();dz.style.background='';handleFile(e.dataTransfer.files[0]);});
+document.getElementById('fi').addEventListener('change',e=>handleFile(e.target.files[0]));
+
+function addStep(msg,pct){
+  const s=document.getElementById('steps');
+  const d=document.createElement('div');d.className='step-row';
+  d.innerHTML=`<div class="sdot"></div><span>${msg}</span>`;
+  s.appendChild(d);
+  document.getElementById('lbar').style.width=pct+'%';
+  document.getElementById('lmsg').textContent=msg;
+}
+
+function handleFile(file){
+  if(!file)return;
+  document.getElementById('loading-box').style.display='block';
+  document.getElementById('steps').innerHTML='';
+  addStep('Reading '+file.name,10);
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='csv'){const r=new FileReader();r.onload=e=>{addStep('Parsing CSV...',20);parse(Papa.parse(e.target.result,{header:true,skipEmptyLines:true,dynamicTyping:true}).data,file.name);};r.readAsText(file);}
+  else{const r=new FileReader();r.onload=e=>{addStep('Parsing Excel...',20);const wb=XLSX.read(e.target.result,{type:'array'});parse(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:null}),file.name);};r.readAsArrayBuffer(file);}
+}
+
+function isIdCol(col,data){
+  const name=col.toLowerCase();
+  if(/(_id|^id$|^index$|^row|_no$|_num$|_number$|_key$|^uuid|^guid|^serial)/.test(name))return true;
+  const nums=data.map(r=>r[col]).filter(v=>typeof v==='number'&&!isNaN(v));
+  if(nums.length>data.length*.7){
+    const uniq=new Set(nums).size;
+    if(uniq===nums.length&&uniq>30)return true;
+  }
+  return false;
+}
+
+function parse(raw,name){
+  addStep('Cleaning & profiling data...',35);
+  gCols=Object.keys(raw[0]||{});
+  gData=raw.filter(r=>gCols.some(c=>r[c]!=null&&r[c]!==''));
+
+  const allNumCols=gCols.filter(c=>gData.filter(r=>typeof r[c]==='number').length>gData.length*.5);
+  const idCols=allNumCols.filter(c=>isIdCol(c,gData));
+  gNumCols=allNumCols.filter(c=>!idCols.includes(c));
+  gCatCols=gCols.filter(c=>!allNumCols.includes(c));
+
+  const numStats={};
+  gNumCols.forEach(c=>{
+    const v=gData.map(r=>r[c]).filter(x=>x!=null&&!isNaN(x));
+    const sum=v.reduce((a,b)=>a+b,0);
+    numStats[c]={sum:+sum.toFixed(2),mean:+(sum/v.length).toFixed(2),min:+Math.min(...v).toFixed(2),max:+Math.max(...v).toFixed(2),count:v.length,uniqueCount:new Set(v).size};
+  });
+  const catStats={};
+  gCatCols.forEach(c=>{
+    const m={};gData.forEach(r=>{const v=String(r[c]||'');m[v]=(m[v]||0)+1;});
+    catStats[c]={topValues:Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,v])=>({label:k,count:v})),uniqueCount:Object.keys(m).length};
+  });
+
+  addStep('AI is reading your data...',55);
+  askAI(name,numStats,catStats,idCols);
+}
+
+async function askAI(fileName,numStats,catStats,idCols){
+  const sampleRows=gData.slice(0,10);
+  const prompt=`You are a senior BI analyst. Study this dataset carefully and build the most useful dashboard.
+
+Dataset: "${fileName.replace(/\.[^.]+$/,'')}" | Rows: ${gData.length}
+All columns: ${JSON.stringify(gCols)}
+Skip these ID/irrelevant columns (do NOT use in KPIs or charts): ${JSON.stringify(idCols)}
+Meaningful numeric columns: ${JSON.stringify(gNumCols)}
+Categorical columns: ${JSON.stringify(gCatCols)}
+Numeric stats: ${JSON.stringify(numStats)}
+Category distributions: ${JSON.stringify(catStats)}
+Sample rows (read carefully to understand domain): ${JSON.stringify(sampleRows)}
+
+STEP 1: Read the sample rows and understand the business domain.
+STEP 2: Classify each column:
+  METRIC = price, sales, revenue, profit, quantity, amount, cost, mrp, margin, score, rating, salary, discount, stock, percentage
+  TIME = year, month, date, quarter, week, day, period
+  DIMENSION = category, product, region, city, country, segment, brand, department, gender, type, name, status
+  SKIP = id columns, serial numbers, unique identifiers (already listed above)
+STEP 3: KPIs = total or avg of METRIC columns. Never ID columns.
+STEP 4: Charts = business-meaningful combinations:
+  METRIC + TIME -> line chart
+  METRIC + DIMENSION (few values) -> bar chart
+  METRIC + DIMENSION (many values >12) -> horizontalBar
+  DIMENSION alone -> doughnut
+  METRIC alone -> histogram
+  two METRICs that relate -> scatter
+
+Return ONLY valid JSON no markdown:
+{"title":"...","subtitle":"...","column_understanding":"2 sentences about domain and columns","ai_decisions":"2 sentences about which combinations chosen and why","kpis":[{"label":"human label","col":"exact_col","aggregation":"sum|mean|count|max|min","prefix":"Rs. or $ or empty","suffix":"% or empty","context":"brief context"}],"charts":[{"type":"line|bar|horizontalBar|doughnut|histogram|scatter","title":"...","story":"business question this answers","xCol":"exact_col or null","yCol":"exact_col or null","aggregation":"sum|mean|count|none"}],"insights":[{"text":"specific insight with real numbers","sentiment":"positive|warning|neutral"}]}
+
+Rules: never use ID cols, use EXACT column names, 4-6 kpis, 4-6 charts ordered by importance, 5-7 insights with real numbers.`;
+
+  try{
+    const key=getKey();
+    if(!key){addStep('No API key — using smart local analysis...',70);localFallback(numStats,catStats,fileName);return;}
+    addStep('AI is understanding your columns...',65);
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,messages:[{role:'user',content:prompt}]})});
+    const result=await resp.json();
+    if(result.error){console.error(result.error);addStep('AI error: '+result.error.message,70);localFallback(numStats,catStats,fileName);return;}
+    const txt=result.content.map(i=>i.text||'').join('');
+    const parsed=JSON.parse(txt.replace(/```json|```/g,'').trim());
+    addStep('Rendering dashboard...',92);
+    setTimeout(()=>renderDash(parsed),300);
+  }catch(e){
+    console.error(e);
+    addStep('Using smart local analysis...',70);
+    localFallback(numStats,catStats,fileName);
+  }
+}
+
+
+function localFallback(numStats,catStats,fileName){
+  // Smart local fallback: skip ID cols, pick real metrics and dimensions
+  const metricKeywords=/price|sale|revenue|profit|amount|cost|mrp|margin|score|rating|salary|discount|stock|quantity|count|total|avg|sum/i;
+  const timeKeywords=/year|month|date|quarter|week|day|period/i;
+  const dimKeywords=/category|product|region|city|country|segment|brand|department|gender|type|name|status|sub.?cat/i;
+
+  const metrics=gNumCols.filter(c=>metricKeywords.test(c));
+  const timeCols=gCatCols.filter(c=>timeKeywords.test(c));
+  const dims=gCatCols.filter(c=>dimKeywords.test(c));
+  const otherNums=gNumCols.filter(c=>!metricKeywords.test(c));
+
+  const useMetrics=metrics.length?metrics:gNumCols.slice(0,4);
+  const useDims=dims.length?dims:gCatCols.slice(0,3);
+
+  const kpis=useMetrics.slice(0,5).map(c=>{
+    const isAvg=/margin|percentage|rate|ratio|score|rating|pct/i.test(c);
+    return{label:c.replace(/_/g,' '),col:c,aggregation:isAvg?'mean':'sum',prefix:'',suffix:isAvg?'%':'',context:isAvg?'average':'total'};
+  });
+  if(kpis.length<4)kpis.push({label:'Total products',col:gCols[0],aggregation:'count',prefix:'',suffix:'',context:'records in dataset'});
+
+  const charts=[];
+  if(timeCols[0]&&useMetrics[0])charts.push({type:'line',title:useMetrics[0].replace(/_/g,' ')+' over '+timeCols[0],story:'Trend of '+useMetrics[0]+' over time',xCol:timeCols[0],yCol:useMetrics[0],aggregation:'mean'});
+  if(useDims[0]&&useMetrics[0]){
+    const uniq=catStats[useDims[0]]?.uniqueCount||catStats[useDims[0]]?.topValues?.length||5;
+    charts.push({type:uniq>12?'horizontalBar':'bar',title:useMetrics[0].replace(/_/g,' ')+' by '+useDims[0].replace(/_/g,' '),story:'Compare '+useMetrics[0]+' across different '+useDims[0]+' values',xCol:useDims[0],yCol:useMetrics[0],aggregation:'mean'});
+  }
+  if(useDims[0])charts.push({type:'doughnut',title:useDims[0].replace(/_/g,' ')+' breakdown',story:'Distribution of records by '+useDims[0],xCol:useDims[0],yCol:null,aggregation:'count'});
+  if(useMetrics[0])charts.push({type:'histogram',title:useMetrics[0].replace(/_/g,' ')+' distribution',story:'How '+useMetrics[0]+' values are spread across products',xCol:null,yCol:useMetrics[0],aggregation:'none'});
+  if(useDims[1]&&useMetrics[1])charts.push({type:'bar',title:useMetrics[1].replace(/_/g,' ')+' by '+useDims[1].replace(/_/g,' '),story:'Compare '+useMetrics[1]+' across '+useDims[1],xCol:useDims[1],yCol:useMetrics[1],aggregation:'mean'});
+
+  const name=fileName.replace(/\.[^.]+$/,'');
+  renderDash({
+    title:name.replace(/_/g,' '),
+    subtitle:`${gData.length} records across ${gCols.length} columns — add an Anthropic API key for full AI analysis`,
+    column_understanding:'',
+    ai_decisions:'Add your Anthropic API key in the top bar for AI-powered column understanding and smarter chart selection.',
+    kpis,charts,
+    insights:[
+      {text:`Dataset has ${gData.length} rows and ${gCols.length} columns. Meaningful numeric columns detected: ${gNumCols.join(', ') || 'none'}.`,sentiment:'neutral'},
+      {text:`Category columns detected: ${gCatCols.join(', ') || 'none'}. Add an API key for deeper AI insights.`,sentiment:'neutral'}
+    ]
+  });
+}
+
+
+function computeKPI(col,agg){
+  const vals=gData.map(r=>r[col]).filter(v=>typeof v==='number'&&!isNaN(v));
+  if(!vals.length)return'—';
+  let v;
+  switch(agg){
+    case'sum':v=vals.reduce((a,b)=>a+b,0);break;
+    case'mean':v=vals.reduce((a,b)=>a+b,0)/vals.length;break;
+    case'max':v=Math.max(...vals);break;
+    case'min':v=Math.min(...vals);break;
+    case'count':v=vals.length;break;
+    default:v=vals.reduce((a,b)=>a+b,0);
+  }
+  if(v>=1e9)return(v/1e9).toFixed(2)+'B';
+  if(v>=1e6)return(v/1e6).toFixed(2)+'M';
+  if(v>=1e3)return(v/1e3).toFixed(1)+'K';
+  return v%1===0?String(v):v.toFixed(2);
+}
+
+function aggData(groupCol,valueCol,method){
+  if(!groupCol){
+    const vs=gData.map(r=>r[valueCol]).filter(v=>typeof v==='number'&&!isNaN(v));
+    const val=method==='mean'?vs.reduce((a,b)=>a+b,0)/vs.length:vs.reduce((a,b)=>a+b,0);
+    return{labels:['Total'],values:[+val.toFixed(2)]};
+  }
+  const map={};
+  gData.forEach(r=>{
+    const k=String(r[groupCol]??'(blank)');
+    if(!map[k])map[k]=[];
+    const v=r[valueCol];
+    if(typeof v==='number'&&!isNaN(v))map[k].push(v);
+  });
+  const entries=Object.entries(map).filter(([,vs])=>vs.length>0);
+  entries.sort((a,b)=>{
+    const av=method==='mean'?a[1].reduce((x,y)=>x+y,0)/a[1].length:a[1].reduce((x,y)=>x+y,0);
+    const bv=method==='mean'?b[1].reduce((x,y)=>x+y,0)/b[1].length:b[1].reduce((x,y)=>x+y,0);
+    return bv-av;
+  });
+  const top=entries.slice(0,15);
+  return{
+    labels:top.map(([k])=>k),
+    values:top.map(([,vs])=>{const v=method==='mean'?vs.reduce((a,b)=>a+b,0)/vs.length:vs.reduce((a,b)=>a+b,0);return+v.toFixed(2);})
+  };
+}
+
+const COLORS=['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#84cc16','#f97316','#ec4899','#14b8a6','#a78bfa','#fb923c'];
+
+function renderDash(parsed){
+  document.getElementById('loading-box').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  document.getElementById('d-title').textContent=parsed.title||'Dashboard';
+  document.getElementById('d-sub').textContent=parsed.subtitle||`${gData.length} rows · ${gCols.length} columns`;
+
+  const aiBox=document.getElementById('ai-box');
+  const txt=[parsed.column_understanding,parsed.ai_decisions].filter(Boolean).join(' ');
+  aiBox.textContent=txt||'';
+  if(!txt)aiBox.style.display='none';
+
+  document.getElementById('kpi-grid').innerHTML=(parsed.kpis||[]).map(k=>`
+    <div class="kpi-card">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${(k.prefix||'')}${computeKPI(k.col,k.aggregation)}${(k.suffix||'')}</div>
+      <div class="kpi-ctx">${k.context||''}</div>
+    </div>`).join('');
+
+  chartInst.forEach(c=>c.destroy());chartInst.length=0;
+  const grid=document.getElementById('charts-grid');grid.innerHTML='';
+
+  (parsed.charts||[]).forEach((ch,i)=>{
+    const card=document.createElement('div');card.className='chart-card';
+    card.innerHTML=`<div class="chart-title">${ch.title}</div><div class="chart-story">${ch.story||''}</div>`;
+    const wrap=document.createElement('div');wrap.style.cssText='position:relative;width:100%;height:220px;';
+    const canvas=document.createElement('canvas');canvas.id='c'+i;
+    wrap.appendChild(canvas);card.appendChild(wrap);grid.appendChild(card);
+    buildChart('c'+i,ch);
+  });
+
+  const sc={positive:'#10b981',warning:'#f59e0b',neutral:'#6366f1'};
+  document.getElementById('insights').innerHTML=(parsed.insights||[]).map(ins=>`
+    <div class="insight-row">
+      <div class="iball" style="background:${sc[ins.sentiment]||'#6366f1'}"></div>
+      <span>${ins.text}</span>
+    </div>`).join('');
+}
+
+function buildChart(id,ch){
+  const canvas=document.getElementById(id);
+  const agg=ch.aggregation||'sum';
+
+  if(ch.type==='line'&&ch.xCol&&ch.yCol){
+    const {labels,values}=aggData(ch.xCol,ch.yCol,agg);
+    const sorted=labels.map((l,i)=>({l,v:values[i]})).sort((a,b)=>String(a.l).localeCompare(String(b.l),undefined,{numeric:true}));
+    chartInst.push(new Chart(canvas,{type:'line',data:{labels:sorted.map(x=>x.l),datasets:[{data:sorted.map(x=>x.v),borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,.08)',pointRadius:4,tension:.35,borderWidth:2.5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11},maxRotation:40}},y:{ticks:{font:{size:11}}}}}}));
+    return;
+  }
+  if(ch.type==='bar'&&ch.xCol&&ch.yCol){
+    const {labels,values}=aggData(ch.xCol,ch.yCol,agg);
+    chartInst.push(new Chart(canvas,{type:'bar',data:{labels,datasets:[{data:values,backgroundColor:'#6366f1',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11},maxRotation:40}},y:{ticks:{font:{size:11}}}}}}));
+    return;
+  }
+  if(ch.type==='horizontalBar'&&ch.xCol&&ch.yCol){
+    const {labels,values}=aggData(ch.xCol,ch.yCol,agg);
+    canvas.parentElement.style.height=Math.max(220,labels.length*34+60)+'px';
+    chartInst.push(new Chart(canvas,{type:'bar',data:{labels,datasets:[{data:values,backgroundColor:'#10b981',borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11}}},y:{ticks:{font:{size:11}}}}}}));
+    return;
+  }
+  if(ch.type==='doughnut'&&ch.xCol){
+    let labels,values;
+    if(ch.yCol&&gNumCols.includes(ch.yCol)){const r=aggData(ch.xCol,ch.yCol,agg);labels=r.labels;values=r.values;}
+    else{const m={};gData.forEach(r=>{const v=String(r[ch.xCol]||'');m[v]=(m[v]||0)+1;});const arr=Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,10);labels=arr.map(([k])=>k);values=arr.map(([,v])=>v);}
+    chartInst.push(new Chart(canvas,{type:'doughnut',data:{labels,datasets:[{data:values,backgroundColor:COLORS.slice(0,labels.length),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,padding:8}}}}}));
+    return;
+  }
+  if(ch.type==='histogram'&&ch.yCol){
+    const vals=gData.map(r=>r[ch.yCol]).filter(v=>typeof v==='number'&&!isNaN(v));
+    const mn=Math.min(...vals),mx=Math.max(...vals),bins=Math.min(14,Math.ceil(Math.sqrt(vals.length)));
+    const bs=(mx-mn)/bins,counts=Array(bins).fill(0);
+    vals.forEach(v=>{let b=Math.floor((v-mn)/bs);if(b===bins)b--;counts[b]++;});
+    chartInst.push(new Chart(canvas,{type:'bar',data:{labels:counts.map((_,i)=>(mn+i*bs).toFixed(0)),datasets:[{data:counts,backgroundColor:'#f59e0b',borderRadius:2,barPercentage:1,categoryPercentage:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11},maxRotation:40}},y:{ticks:{font:{size:11}}}}}}));
+    return;
+  }
+  if(ch.type==='scatter'&&ch.xCol&&ch.yCol){
+    const pts=gData.map(r=>({x:r[ch.xCol],y:r[ch.yCol]})).filter(p=>typeof p.x==='number'&&typeof p.y==='number').slice(0,500);
+    chartInst.push(new Chart(canvas,{type:'scatter',data:{datasets:[{data:pts,backgroundColor:'rgba(139,92,246,.4)',pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11}}},y:{ticks:{font:{size:11}}}}}}));
+    return;
+  }
+  const fc=gCatCols[0];if(!fc)return;
+  const m={};gData.forEach(r=>{const v=String(r[fc]||'');m[v]=(m[v]||0)+1;});
+  const arr=Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  chartInst.push(new Chart(canvas,{type:'bar',data:{labels:arr.map(([k])=>k),datasets:[{data:arr.map(([,v])=>v),backgroundColor:'#ef4444',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11},maxRotation:40}},y:{ticks:{font:{size:11}}}}}}));
+}
+
+function resetDash(){
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('loading-box').style.display='none';
+  document.getElementById('steps').innerHTML='';
+  document.getElementById('fi').value='';
+  gData=[];gCols=[];chartInst.forEach(c=>c.destroy());chartInst.length=0;
+}
+function dlCSV(){if(!gData.length)return;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([Papa.unparse(gData)],{type:'text/csv'}));a.download='cleaned_data.csv';a.click();}
+function dlHTML(){
+  const clone=document.getElementById('dashboard').cloneNode(true);
+  clone.querySelectorAll('canvas').forEach(c=>c.remove());
+  const aiB=clone.querySelector('#ai-box');
+  if(aiB)aiB.style.display='none';
+  const hdr=clone.querySelector('.dash-header');
+  if(hdr){const btns=hdr.querySelector('.btn-row');if(btns)btns.remove();}
+  const title=document.getElementById('d-title').textContent;
+  const kpiHTML=document.getElementById('kpi-grid').innerHTML;
+  const insHTML=document.getElementById('insights').innerHTML;
+  const chartData=chartInst.map((c,i)=>{
+    try{const cv=document.getElementById('c'+i);return cv?`<div style="position:relative;width:100%;height:220px;"><img src="${cv.toDataURL()}" style="width:100%;height:100%;object-fit:contain;"></div>`:''}catch(e){return'';}
+  });
+  const chartsHTML=Array.from(document.getElementById('charts-grid').children).map((card,i)=>{
+    const t=card.querySelector('.chart-title')?.textContent||'';
+    const s=card.querySelector('.chart-story')?.textContent||'';
+    return`<div class="chart-card"><div class="chart-title">${t}</div><div class="chart-story">${s}</div>${chartData[i]||''}</div>`;
+  }).join('');
+  const h=`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>${title} — BI Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f4;color:#1a1a1a;padding:2rem;}
+.main{max-width:1100px;margin:0 auto;}
+.dash-header{background:#fff;border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:1rem;border:1px solid #e5e5e3;}
+.dash-title{font-size:20px;font-weight:700;}
+.dash-sub{font-size:13px;color:#737373;margin-top:3px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:1rem;}
+.kpi-card{background:#fff;border-radius:12px;padding:1rem 1.1rem;border:1px solid #e5e5e3;}
+.kpi-label{font-size:11px;color:#737373;font-weight:500;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
+.kpi-value{font-size:24px;font-weight:700;color:#1a1a1a;}
+.kpi-ctx{font-size:11px;color:#a3a3a0;margin-top:3px;}
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;margin-bottom:1rem;}
+.chart-card{background:#fff;border-radius:12px;padding:1.1rem 1.25rem;border:1px solid #e5e5e3;}
+.chart-title{font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:2px;}
+.chart-story{font-size:11px;color:#a3a3a0;margin-bottom:12px;line-height:1.4;}
+.insights-card{background:#fff;border-radius:12px;padding:1.1rem 1.25rem;border:1px solid #e5e5e3;margin-bottom:1rem;}
+.insights-title{font-size:13px;font-weight:600;margin-bottom:10px;}
+.insight-row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0ee;font-size:13px;line-height:1.5;}
+.insight-row:last-child{border-bottom:none;}
+.iball{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+</style>
+</head><body><div class="main">
+<div class="dash-header">
+  <div class="dash-title">${title}</div>
+  <div class="dash-sub">${document.getElementById('d-sub').textContent}</div>
+</div>
+<div class="kpi-grid">${kpiHTML}</div>
+<div class="charts-grid">${chartsHTML}</div>
+<div class="insights-card">
+  <div class="insights-title">Key insights</div>
+  <div>${insHTML}</div>
+</div>
+</div></body></html>`;
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([h],{type:'text/html'}));a.download=title.replace(/\s+/g,'_')+'_dashboard.html';a.click();
+}
+</script>
+</body>
+</html>
